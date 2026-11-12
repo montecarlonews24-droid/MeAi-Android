@@ -11,8 +11,18 @@ android {
         applicationId = "com.montecarlo.meai"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
+    }
+
+    // مفتاح توقيع ثابت للنسخ التجريبية، عشان التحديثات تنزل فوق بعض بدون حذف
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("meai-debug.jks")
+            storePassword = "meai1234"
+            keyAlias = "meai"
+            keyPassword = "meai1234"
+        }
     }
 
     buildTypes {

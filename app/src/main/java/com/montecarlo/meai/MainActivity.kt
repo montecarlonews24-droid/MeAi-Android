@@ -199,6 +199,14 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             content.addView(View(this).apply { setBackgroundColor(C.LINE) }, lp(h = dp(1)))
         }
 
+        if (r.rejected.isNotEmpty()) {
+            content.addView(h2("أفكار رفضها محمد"), lp(top = 26))
+            r.rejected.forEach { rj ->
+                content.addView(tv(rj.name, 16f, C.MUTED, true), lp(top = 8))
+                if (rj.reason.isNotBlank()) content.addView(tv(rj.reason, 14f, C.MUTED), lp())
+            }
+        }
+
         if (r.sources.isNotEmpty()) {
             content.addView(h2("المصادر"), lp(top = 26))
             r.sources.take(8).forEach { s ->
@@ -244,10 +252,41 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         row("لمين", x.audience)
         row("ليش هلأ", x.whyNow)
         row("المنافسة", x.competition)
+        row("المنافسين", x.competitors.joinToString("، "))
+        row("كيف تتفوق عليهم", x.edge)
         row("الربح", x.monetization)
         row("البناء", listOf(x.difficulty, if (x.days > 0) "حوالي ${x.days} يوم" else "")
             .filter { it.isNotBlank() }.joinToString("، "))
         row("أول خطوة", x.firstStep)
+
+        // 👍 / 👎
+        val votes = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val up = pill("👍 عجبتني", C.PANEL, C.TEXT)
+        val down = pill("👎 مش لإلي", C.PANEL, C.TEXT)
+        fun paint(v: String?) {
+            listOf(up to "up", down to "down").forEach { (b, k) ->
+                val on = v == k
+                (b.background as GradientDrawable).setColor(if (on) C.AMBER else C.PANEL)
+                b.setTextColor(if (on) 0xFF1A1205.toInt() else C.TEXT)
+            }
+        }
+        paint(Feedback.local(this, x.name))
+        fun vote(k: String) {
+            val next = if (Feedback.local(this, x.name) == k) null else k
+            paint(next)
+            io.execute {
+                val ok = Feedback.send(this, x, next)
+                main.post {
+                    if (ok) toast(if (next == null) "انشال التقييم" else "محمد رح يتعلم من هالتقييم")
+                    else { paint(Feedback.local(this, x.name)); toast("ما انحفظ، تأكد من النت") }
+                }
+            }
+        }
+        up.setOnClickListener { vote("up") }
+        down.setOnClickListener { vote("down") }
+        votes.addView(up, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT))
+        votes.addView(down, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { marginStart = dp(8) })
+        details.addView(votes, lp(WRAP_CONTENT, WRAP_CONTENT, 14))
 
         val copy = pill(copyLabel, 0xFF0E1D1C.toInt(), C.TEXT)
         copy.setOnClickListener {

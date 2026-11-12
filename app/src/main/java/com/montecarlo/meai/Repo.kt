@@ -9,14 +9,18 @@ import java.net.URL
 data class Idea(
     val name: String, val pitch: String, val problem: String, val audience: String,
     val whyNow: String, val competition: String, val monetization: String,
-    val difficulty: String, val days: Int, val score: Int, val firstStep: String
+    val difficulty: String, val days: Int, val score: Int, val firstStep: String,
+    val competitors: List<String> = emptyList(), val edge: String = ""
 )
+
+data class Rejected(val name: String, val reason: String)
 
 data class Source(val title: String, val url: String)
 
 data class Report(
     val date: String, val summary: String, val trends: List<String>,
-    val ideas: List<Idea>, val sources: List<Source>
+    val ideas: List<Idea>, val sources: List<Source>,
+    val rejected: List<Rejected> = emptyList()
 )
 
 object Repo {
@@ -53,7 +57,8 @@ object Repo {
             Idea(
                 x.s("name"), x.s("pitch"), x.s("problem"), x.s("audience"), x.s("whyNow"),
                 x.s("competition"), x.s("monetization"), x.s("buildDifficulty"),
-                x.optInt("buildDays", 0), x.optInt("score", 0).coerceIn(0, 10), x.s("firstStep")
+                x.optInt("buildDays", 0), x.optInt("score", 0).coerceIn(0, 10), x.s("firstStep"),
+                strings(x.optJSONArray("competitors")).filter { it.isNotBlank() }, x.s("edge")
             )
         }
         val sa = o.optJSONArray("sources")
@@ -61,8 +66,13 @@ object Repo {
             val x = sa.getJSONObject(i)
             Source(x.s("title"), x.s("url"))
         }
+        val ra = o.optJSONArray("rejected")
+        val rejected = if (ra == null) emptyList() else List(ra.length()) { i ->
+            val x = ra.getJSONObject(i)
+            Rejected(x.s("name"), x.s("reason"))
+        }
         return Report(o.s("date"), o.s("summary"), strings(o.optJSONArray("trends")),
-            ideas.sortedByDescending { it.score }, sources)
+            ideas.sortedByDescending { it.score }, sources, rejected)
     }
 
     fun latest(ctx: Context): Report {
