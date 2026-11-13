@@ -1,6 +1,7 @@
 package com.montecarlo.meai
 
 import android.content.Context
+import android.net.Uri
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -26,6 +27,25 @@ data class Report(
 object Repo {
     // التقارير اللي بيكتبها الـ Agent كل يوم بريبو Me.ai
     private const val BASE = "https://raw.githubusercontent.com/montecarlonews24-droid/Me.ai/main/reports/"
+
+    private const val PLANS = "https://raw.githubusercontent.com/montecarlonews24-droid/Me.ai/main/plans/"
+
+    /** خطة البناء، أو null إذا لسا ما جهزت */
+    fun plan(key: String): JSONObject? {
+        val c = URL(PLANS + Uri.encode(key) + ".json?t=" + System.currentTimeMillis()).openConnection() as HttpURLConnection
+        c.connectTimeout = 15000
+        c.readTimeout = 15000
+        c.useCaches = false
+        try {
+            return when (c.responseCode) {
+                200 -> JSONObject(c.inputStream.bufferedReader().use { it.readText() })
+                404 -> null
+                else -> throw Exception("HTTP ${c.responseCode}")
+            }
+        } finally {
+            c.disconnect()
+        }
+    }
 
     fun prefs(ctx: Context) = ctx.getSharedPreferences("meai", Context.MODE_PRIVATE)
 

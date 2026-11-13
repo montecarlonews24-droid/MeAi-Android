@@ -288,6 +288,23 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         votes.addView(down, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { marginStart = dp(8) })
         details.addView(votes, lp(WRAP_CONTENT, WRAP_CONTENT, 14))
 
+        // 🔨 ابنيها
+        val buildLabel = { if (Builds.requested(this, x.name)) "📋 شوف خطة البناء" else "🔨 ابنيها" }
+        val build = pill(buildLabel(), C.AMBER, 0xFF1A1205.toInt())
+        build.setOnClickListener {
+            if (Builds.requested(this, x.name)) { openPlan(x.name); return@setOnClickListener }
+            build.text = "عم يبعت…"
+            io.execute {
+                val ok = Builds.request(this, x)
+                main.post {
+                    build.text = buildLabel()
+                    if (ok) { PlanWorker.start(this, x.name); openPlan(x.name) }
+                    else toast("ما انبعت، تأكد من النت")
+                }
+            }
+        }
+        details.addView(build, lp(WRAP_CONTENT, WRAP_CONTENT, 10))
+
         val copy = pill(copyLabel, 0xFF0E1D1C.toInt(), C.TEXT)
         copy.setOnClickListener {
             copyIdea(x)
@@ -303,6 +320,9 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         box.addView(details)
         return box
     }
+
+    private fun openPlan(name: String) =
+        startActivity(Intent(this, PlanActivity::class.java).putExtra("name", name))
 
     private fun copyIdea(x: Idea) {
         val text = """بدي أبني تطبيق اسمه ${x.name}.

@@ -18,13 +18,13 @@ object Notify {
             .createNotificationChannel(NotificationChannel(CH, "أفكار اليوم", NotificationManager.IMPORTANCE_DEFAULT))
     }
 
-    fun show(ctx: Context, title: String, text: String) {
+    fun show(ctx: Context, title: String, text: String, intent: Intent? = null, id: Int = 1) {
         if (Build.VERSION.SDK_INT >= 33 &&
             ctx.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) return
         channel(ctx)
         val pi = PendingIntent.getActivity(
-            ctx, 0, Intent(ctx, MainActivity::class.java),
+            ctx, id, intent ?: Intent(ctx, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
         val n = Notification.Builder(ctx, CH)
@@ -35,6 +35,6 @@ object Notify {
             .setContentIntent(pi)
             .setAutoCancel(true)
             .build()
-        ctx.getSystemService(NotificationManager::class.java).notify(1, n)
+        ctx.getSystemService(NotificationManager::class.java).notify(id, n)
     }
 }
