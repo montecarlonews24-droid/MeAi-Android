@@ -22,10 +22,11 @@ class ScoutWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, params) 
         if (r.date.isNotBlank() && prefs.getString("lastSeen", "") != r.date) {
             prefs.edit().putString("lastSeen", r.date).apply()
             val top = r.ideas.firstOrNull()
+            val c = applicationContext
             Notify.show(
-                applicationContext,
-                "${r.ideas.size} أفكار جديدة اليوم",
-                if (top != null) "الأقوى: ${top.name}، ${top.pitch}" else r.summary
+                c,
+                Lang.t(c, "${r.ideas.size} أفكار جديدة اليوم", "${r.ideas.size} new app ideas today"),
+                if (top != null) Lang.t(c, "الأقوى: ${top.name}، ${top.pitch}", "Top pick: ${top.name}. ${top.pitch}") else r.summary
             )
         }
         Result.success()

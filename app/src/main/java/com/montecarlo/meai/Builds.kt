@@ -57,7 +57,11 @@ class PlanWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, params) {
         return try {
             if (Repo.plan(Feedback.key(name)) != null) {
                 val open = Intent(applicationContext, PlanActivity::class.java).putExtra("name", name)
-                Notify.show(applicationContext, "🔨 خطة $name جاهزة", "محمد خلّص خطة البناء. افتحها وانسخ أول رسالة لـ Claude.", open, name.hashCode())
+                val c = applicationContext
+                Notify.show(c,
+                    Lang.t(c, "🔨 خطة $name جاهزة", "🔨 $name build plan is ready"),
+                    Lang.t(c, "محمد خلّص خطة البناء. افتحها وانسخ أول رسالة لـ Claude.", "Your build plan is ready. Open it and copy the first prompt for Claude."),
+                    open, name.hashCode())
                 Result.success()
             } else if (runAttemptCount >= 12) Result.failure() else Result.retry()
         } catch (e: Exception) {

@@ -15,7 +15,7 @@ object Notify {
 
     fun channel(ctx: Context) {
         ctx.getSystemService(NotificationManager::class.java)
-            .createNotificationChannel(NotificationChannel(CH, "أفكار اليوم", NotificationManager.IMPORTANCE_DEFAULT))
+            .createNotificationChannel(NotificationChannel(CH, Lang.t(ctx, "أفكار اليوم", "Daily ideas"), NotificationManager.IMPORTANCE_DEFAULT))
     }
 
     fun show(ctx: Context, title: String, text: String, intent: Intent? = null, id: Int = 1) {

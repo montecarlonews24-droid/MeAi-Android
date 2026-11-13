@@ -69,8 +69,10 @@ object Repo {
 
     private fun strings(a: JSONArray?) = if (a == null) emptyList() else List(a.length()) { a.optString(it) }
 
-    fun parse(json: String): Report {
-        val o = JSONObject(json)
+    fun parse(json: String, en: Boolean = false): Report {
+        val root = JSONObject(json)
+        // النسخة الإنجليزية إذا موجودة، وإلا العربي
+        val o = if (en) root.optJSONObject("en") ?: root else root
         val ia = o.optJSONArray("ideas")
         val ideas = if (ia == null) emptyList() else List(ia.length()) { i ->
             val x = ia.getJSONObject(i)
@@ -81,7 +83,7 @@ object Repo {
                 strings(x.optJSONArray("competitors")).filter { it.isNotBlank() }, x.s("edge")
             )
         }
-        val sa = o.optJSONArray("sources")
+        val sa = root.optJSONArray("sources")
         val sources = if (sa == null) emptyList() else List(sa.length()) { i ->
             val x = sa.getJSONObject(i)
             Source(x.s("title"), x.s("url"))
@@ -91,21 +93,21 @@ object Repo {
             val x = ra.getJSONObject(i)
             Rejected(x.s("name"), x.s("reason"))
         }
-        return Report(o.s("date"), o.s("summary"), strings(o.optJSONArray("trends")),
+        return Report(root.s("date"), o.s("summary"), strings(o.optJSONArray("trends")),
             ideas.sortedByDescending { it.score }, sources, rejected)
     }
 
     fun latest(ctx: Context): Report {
         val t = fetch("latest.json")
-        val r = parse(t)
+        val r = parse(t, Lang.en(ctx))
         prefs(ctx).edit().putString("cache", t).apply()
         return r
     }
 
     fun cached(ctx: Context): Report? =
-        prefs(ctx).getString("cache", null)?.let { runCatching { parse(it) }.getOrNull() }
+        prefs(ctx).getString("cache", null)?.let { runCatching { parse(it, Lang.en(ctx)) }.getOrNull() }
 
-    fun byDate(date: String): Report = parse(fetch("$date.json"))
+    fun byDate(date: String, en: Boolean): Report = parse(fetch("$date.json"), en)
 
     fun dates(): List<String> = strings(JSONObject(fetch("index.json")).optJSONArray("dates"))
 }

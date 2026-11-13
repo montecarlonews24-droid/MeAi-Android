@@ -41,8 +41,11 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     private val main = Handler(Looper.getMainLooper())
     private val io = Executors.newSingleThreadExecutor()
 
-    private val speakLabel = "🔊 اسمع الملخص"
-    private val copyLabel = "انسخ الفكرة لـ Claude"
+    private val en by lazy { Lang.en(this) }
+    private fun t(ar: String, en: String) = if (this.en) en else ar
+
+    private val speakLabel get() = t("🔊 اسمع الملخص", "🔊 Listen")
+    private val copyLabel get() = t("انسخ الفكرة لـ Claude", "Copy idea for Claude")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -97,11 +100,24 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     private fun buildUi(): View {
         val col = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            layoutDirection = View.LAYOUT_DIRECTION_RTL
+            layoutDirection = if (en) View.LAYOUT_DIRECTION_LTR else View.LAYOUT_DIRECTION_RTL
             setPadding(dp(18), dp(20), dp(18), dp(40))
         }
-        col.addView(tv("محمد", 36f, C.AMBER, true))
-        col.addView(tv("كشّاف الأفكار اليومي", 16f, C.MUTED))
+
+        // الاسم + زر اللغة
+        val top = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        val titles = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        titles.addView(tv(t("محمد", "Me.ai"), 36f, C.AMBER, true))
+        titles.addView(tv(t("كشّاف الأفكار اليومي", "Daily idea scout"), 16f, C.MUTED))
+        top.addView(titles, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        val langBtn = pill(if (en) "عربي" else "EN", C.PANEL, C.TEXT).apply {
+            setOnClickListener { Lang.toggle(this@MainActivity); recreate() }
+        }
+        top.addView(langBtn, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT))
+        col.addView(top, lp())
 
         avatar = AvatarView(this)
         col.addView(avatar, LinearLayout.LayoutParams(dp(190), dp(190)).apply {
@@ -117,8 +133,8 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             gravity = Gravity.CENTER
         }
         speakBtn = pill(speakLabel, C.AMBER, 0xFF1A1205.toInt()).apply { setOnClickListener { speak() } }
-        val arch = pill("الأرشيف", C.PANEL, C.TEXT).apply { setOnClickListener { archive() } }
-        val ref = pill("تحديث", C.PANEL, C.TEXT).apply { setOnClickListener { load(null) } }
+        val arch = pill(t("الأرشيف", "Archive"), C.PANEL, C.TEXT).apply { setOnClickListener { archive() } }
+        val ref = pill(t("تحديث", "Refresh"), C.PANEL, C.TEXT).apply { setOnClickListener { load(null) } }
         listOf(speakBtn, arch, ref).forEachIndexed { i, v ->
             actions.addView(v, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply {
                 if (i > 0) marginStart = dp(8)
@@ -147,23 +163,26 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     }
 
     private fun load(date: String?) {
-        if (report == null) setState("عم بجيب التقرير…")
+        if (report == null) setState(t("عم بجيب التقرير…", "Loading report…"))
         io.execute {
-            val r = runCatching { if (date == null) Repo.latest(this) else Repo.byDate(date) }
+            val r = runCatching { if (date == null) Repo.latest(this) else Repo.byDate(date, en) }
             main.post {
                 r.onSuccess {
                     if (date == null) Repo.prefs(this).edit().putString("lastSeen", it.date).apply()
                     show(it)
                 }.onFailure {
-                    if (report == null) setState("ما في تقرير لسا.\nمن GitHub افتح Actions وشغّل Me.ai Daily Idea Scout، وارجع بعد دقيقتين.")
-                    else toast("ما قدرت أحدّث، تأكد من النت")
+                    if (report == null) setState(t(
+                        "ما في تقرير لسا.\nمن GitHub افتح Actions وشغّل Me.ai Daily Idea Scout، وارجع بعد دقيقتين.",
+                        "No report yet.\nOpen GitHub Actions and run Me.ai Daily Idea Scout, then come back in two minutes."
+                    ))
+                    else toast(t("ما قدرت أحدّث، تأكد من النت", "Couldn't refresh, check your connection"))
                 }
             }
         }
     }
 
     private fun fmt(d: String) = runCatching {
-        LocalDate.parse(d).format(DateTimeFormatter.ofPattern("EEEE d MMMM yyyy", Locale("ar")))
+        LocalDate.parse(d).format(DateTimeFormatter.ofPattern("EEEE d MMMM yyyy", if (en) Locale.ENGLISH else Locale("ar")))
     }.getOrDefault(d)
 
     private fun show(r: Report) {
@@ -181,9 +200,9 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         }, lp())
 
         if (r.trends.isNotEmpty()) {
-            content.addView(h2("شو ماشي بالسوق"), lp(top = 26))
-            r.trends.forEach { t ->
-                content.addView(tv(t, 15f, 0xFFCFDAD8.toInt()).apply {
+            content.addView(h2(t("شو ماشي بالسوق", "Market trends")), lp(top = 26))
+            r.trends.forEach { tr ->
+                content.addView(tv(tr, 15f, 0xFFCFDAD8.toInt()).apply {
                     background = GradientDrawable().apply {
                         cornerRadius = dp(14).toFloat()
                         setStroke(dp(1), C.LINE)
@@ -193,14 +212,14 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             }
         }
 
-        content.addView(h2("الأفكار حسب قوة الفرصة"), lp(top = 26))
+        content.addView(h2(t("الأفكار حسب قوة الفرصة", "Ideas by opportunity")), lp(top = 26))
         r.ideas.forEach {
             content.addView(card(it), lp())
             content.addView(View(this).apply { setBackgroundColor(C.LINE) }, lp(h = dp(1)))
         }
 
         if (r.rejected.isNotEmpty()) {
-            content.addView(h2("أفكار رفضها محمد"), lp(top = 26))
+            content.addView(h2(t("أفكار رفضها محمد", "Ideas the agent rejected")), lp(top = 26))
             r.rejected.forEach { rj ->
                 content.addView(tv(rj.name, 16f, C.MUTED, true), lp(top = 8))
                 if (rj.reason.isNotBlank()) content.addView(tv(rj.reason, 14f, C.MUTED), lp())
@@ -208,7 +227,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         }
 
         if (r.sources.isNotEmpty()) {
-            content.addView(h2("المصادر"), lp(top = 26))
+            content.addView(h2(t("المصادر", "Sources")), lp(top = 26))
             r.sources.take(8).forEach { s ->
                 content.addView(tv(s.title.ifBlank { s.url }, 14f, C.CYAN).apply {
                     setPadding(0, dp(4), 0, dp(4))
@@ -248,21 +267,21 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             details.addView(tv(k, 13f, C.TEAL, true).apply { setPadding(0, dp(8), 0, 0) })
             details.addView(tv(v, 16f, C.TEXT))
         }
-        row("المشكلة", x.problem)
-        row("لمين", x.audience)
-        row("ليش هلأ", x.whyNow)
-        row("المنافسة", x.competition)
-        row("المنافسين", x.competitors.joinToString("، "))
-        row("كيف تتفوق عليهم", x.edge)
-        row("الربح", x.monetization)
-        row("البناء", listOf(x.difficulty, if (x.days > 0) "حوالي ${x.days} يوم" else "")
-            .filter { it.isNotBlank() }.joinToString("، "))
-        row("أول خطوة", x.firstStep)
+        row(t("المشكلة", "Problem"), x.problem)
+        row(t("لمين", "Who it's for"), x.audience)
+        row(t("ليش هلأ", "Why now"), x.whyNow)
+        row(t("المنافسة", "Competition"), x.competition)
+        row(t("المنافسين", "Competitors"), x.competitors.joinToString(if (en) ", " else "، "))
+        row(t("كيف تتفوق عليهم", "How to beat them"), x.edge)
+        row(t("الربح", "Monetization"), x.monetization)
+        val days = if (x.days > 0) t("حوالي ${x.days} يوم", "about ${x.days} days") else ""
+        row(t("البناء", "Build"), listOf(x.difficulty, days).filter { it.isNotBlank() }.joinToString(if (en) ", " else "، "))
+        row(t("أول خطوة", "First step"), x.firstStep)
 
         // 👍 / 👎
         val votes = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        val up = pill("👍 عجبتني", C.PANEL, C.TEXT)
-        val down = pill("👎 مش لإلي", C.PANEL, C.TEXT)
+        val up = pill(t("👍 عجبتني", "👍 Like"), C.PANEL, C.TEXT)
+        val down = pill(t("👎 مش لإلي", "👎 Not for me"), C.PANEL, C.TEXT)
         fun paint(v: String?) {
             listOf(up to "up", down to "down").forEach { (b, k) ->
                 val on = v == k
@@ -277,8 +296,8 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             io.execute {
                 val ok = Feedback.send(this, x, next)
                 main.post {
-                    if (ok) toast(if (next == null) "انشال التقييم" else "محمد رح يتعلم من هالتقييم")
-                    else { paint(Feedback.local(this, x.name)); toast("ما انحفظ، تأكد من النت") }
+                    if (ok) toast(if (next == null) t("انشال التقييم", "Vote removed") else t("محمد رح يتعلم من هالتقييم", "The agent will learn from this"))
+                    else { paint(Feedback.local(this, x.name)); toast(t("ما انحفظ، تأكد من النت", "Not saved, check your connection")) }
                 }
             }
         }
@@ -289,17 +308,17 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         details.addView(votes, lp(WRAP_CONTENT, WRAP_CONTENT, 14))
 
         // 🔨 ابنيها
-        val buildLabel = { if (Builds.requested(this, x.name)) "📋 شوف خطة البناء" else "🔨 ابنيها" }
+        val buildLabel = { if (Builds.requested(this, x.name)) t("📋 شوف خطة البناء", "📋 View build plan") else t("🔨 ابنيها", "🔨 Build it") }
         val build = pill(buildLabel(), C.AMBER, 0xFF1A1205.toInt())
         build.setOnClickListener {
             if (Builds.requested(this, x.name)) { openPlan(x.name); return@setOnClickListener }
-            build.text = "عم يبعت…"
+            build.text = t("عم يبعت…", "Sending…")
             io.execute {
                 val ok = Builds.request(this, x)
                 main.post {
                     build.text = buildLabel()
                     if (ok) { PlanWorker.start(this, x.name); openPlan(x.name) }
-                    else toast("ما انبعت، تأكد من النت")
+                    else toast(t("ما انبعت، تأكد من النت", "Not sent, check your connection"))
                 }
             }
         }
@@ -308,10 +327,10 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         val copy = pill(copyLabel, 0xFF0E1D1C.toInt(), C.TEXT)
         copy.setOnClickListener {
             copyIdea(x)
-            copy.text = "انتسخت ✓"
+            copy.text = t("انتسخت ✓", "Copied ✓")
             copy.postDelayed({ copy.text = copyLabel }, 2000)
         }
-        details.addView(copy, lp(WRAP_CONTENT, WRAP_CONTENT, 14))
+        details.addView(copy, lp(WRAP_CONTENT, WRAP_CONTENT, 10))
 
         head.setOnClickListener {
             details.visibility = if (details.visibility == View.GONE) View.VISIBLE else View.GONE
@@ -325,7 +344,13 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         startActivity(Intent(this, PlanActivity::class.java).putExtra("name", name))
 
     private fun copyIdea(x: Idea) {
-        val text = """بدي أبني تطبيق اسمه ${x.name}.
+        val text = if (en) """I want to build an app called ${x.name}.
+Idea: ${x.pitch}
+Problem: ${x.problem}
+Audience: ${x.audience}
+Monetization: ${x.monetization}
+I want it as a native Kotlin app like Flicker, with ready-to-upload files for GitHub."""
+        else """بدي أبني تطبيق اسمه ${x.name}.
 الفكرة: ${x.pitch}
 المشكلة: ${x.problem}
 الجمهور: ${x.audience}
@@ -339,11 +364,11 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             val d = runCatching { Repo.dates() }.getOrDefault(emptyList())
             main.post {
                 if (d.isEmpty()) {
-                    toast("الأرشيف فاضي لسا")
+                    toast(t("الأرشيف فاضي لسا", "Archive is empty"))
                     return@post
                 }
                 AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
-                    .setTitle("التقارير السابقة")
+                    .setTitle(t("التقارير السابقة", "Past reports"))
                     .setItems(d.toTypedArray()) { _, i -> load(d[i]) }
                     .show()
             }
@@ -354,11 +379,11 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
 
     override fun onInit(status: Int) {
         if (status != TextToSpeech.SUCCESS) return
-        val res = tts.setLanguage(Locale("ar"))
+        val res = tts.setLanguage(if (en) Locale.US else Locale("ar"))
         ttsReady = res != TextToSpeech.LANG_MISSING_DATA && res != TextToSpeech.LANG_NOT_SUPPORTED
         tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             override fun onStart(id: String?) {
-                main.post { avatar.speaking = true; speakBtn.text = "⏹ وقّف" }
+                main.post { avatar.speaking = true; speakBtn.text = t("⏹ وقّف", "⏹ Stop") }
             }
             override fun onDone(id: String?) { main.post { stopUi() } }
             override fun onError(id: String?) { main.post { stopUi() } }
@@ -378,10 +403,11 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             return
         }
         if (!ttsReady) {
-            toast("نزّل صوت عربي من إعدادات تحويل النص إلى كلام")
+            toast(t("نزّل صوت عربي من إعدادات تحويل النص إلى كلام", "Install an English voice in text-to-speech settings"))
             return
         }
-        val top = r.ideas.take(3).joinToString("، ") { it.name }
-        tts.speak("${r.summary}. أقوى الأفكار اليوم: $top", TextToSpeech.QUEUE_FLUSH, null, "summary")
+        val top = r.ideas.take(3).joinToString(if (en) ", " else "، ") { it.name }
+        tts.speak(if (en) "${r.summary}. Top ideas today: $top" else "${r.summary}. أقوى الأفكار اليوم: $top",
+            TextToSpeech.QUEUE_FLUSH, null, "summary")
     }
 }
