@@ -58,6 +58,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
         ScoutWorker.schedule(this)
+        JobsWorker.schedule(this)
         Repo.cached(this)?.let { show(it) }
         load(null)
     }

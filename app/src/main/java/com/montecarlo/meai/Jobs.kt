@@ -7,12 +7,16 @@ data class Lead(
     val title: String, val url: String, val platform: String, val market: String,
     val country: String, val budget: String, val posted: String, val proposals: String,
     val language: String, val summary: String, val fit: Int,
-    val why: String, val watch: String, val proposal: String
+    val why: String, val watch: String, val proposal: String,
+    val fresh: Boolean = false
 )
 
 data class Skipped(val title: String, val url: String, val reason: String)
 
-data class JobsReport(val date: String, val summary: String, val leads: List<Lead>, val rejected: List<Skipped>)
+data class JobsReport(
+    val date: String, val summary: String, val leads: List<Lead>, val rejected: List<Skipped>,
+    val generatedAt: String = "", val fresh: Int = 0
+)
 
 /** فرص الشغل اللي بيلاقيها الـ Job Scout كل يوم */
 object Jobs {
@@ -37,7 +41,8 @@ object Jobs {
             Lead(
                 x.s("title"), x.s("url"), x.s("platform"), x.s("market"), x.s("country"),
                 x.s("budget"), x.s("posted"), x.s("proposals"), x.s("language"), x.s("summary"),
-                x.optInt("fit", 0).coerceIn(0, 10), x.lang("why", en), x.lang("watch", en), x.s("proposal")
+                x.optInt("fit", 0).coerceIn(0, 10), x.lang("why", en), x.lang("watch", en), x.s("proposal"),
+                x.optBoolean("fresh", false)
             )
         }
         val ra = root.optJSONArray("rejected")
@@ -45,7 +50,10 @@ object Jobs {
             val x = ra.getJSONObject(i)
             Skipped(x.s("title"), x.s("url"), x.lang("reason", en))
         }
-        return JobsReport(root.s("date"), root.lang("summary", en), leads.sortedByDescending { it.fit }, rejected)
+        // الجديد من آخر جولة فوق، وبعدين حسب قد إيش بتناسب
+        return JobsReport(root.s("date"), root.lang("summary", en),
+            leads.sortedWith(compareByDescending<Lead> { it.fresh }.thenByDescending { it.fit }), rejected,
+            root.s("generatedAt"), root.optInt("fresh", leads.size))
     }
 
     fun latest(ctx: Context): JobsReport {

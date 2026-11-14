@@ -133,7 +133,7 @@ class JobsActivity : Activity() {
             val r = runCatching { Jobs.latest(this) }
             main.post {
                 r.onSuccess {
-                    Repo.prefs(this).edit().putString("jobsSeen", it.date).apply()
+                    Repo.prefs(this).edit().putString("jobsSeenAt", it.generatedAt).apply()
                     show(it)
                 }.onFailure {
                     if (!shown) setState(t(
@@ -206,6 +206,7 @@ class JobsActivity : Activity() {
         }
         val applied = Jobs.applied(this, x.url)
         txt.addView(tv((if (applied) "✅ " else "") + x.title, 18f, C.TEXT, true))
+        if (x.fresh) txt.addView(tv(t("🆕 جديدة من آخر جولة", "🆕 New this run"), 13f, C.CYAN, true))
         val meta = listOf(x.platform, marketLabel(x.market), x.country, x.budget).filter { it.isNotBlank() }
             .joinToString(" · ")
         if (meta.isNotBlank()) txt.addView(tv(meta, 14f, C.AMBER))
