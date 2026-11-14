@@ -1,6 +1,7 @@
 package com.montecarlo.meai
 
 import android.content.Context
+import android.content.Intent
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
@@ -29,9 +30,28 @@ class ScoutWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, params) 
                 if (top != null) Lang.t(c, "الأقوى: ${top.name}، ${top.pitch}", "Top pick: ${top.name}. ${top.pitch}") else r.summary
             )
         }
+        checkJobs()
         Result.success()
     } catch (e: Exception) {
         Result.retry()
+    }
+
+    /** إشعار تاني إذا في فرص شغل جديدة اليوم */
+    private fun checkJobs() {
+        val c = applicationContext
+        val j = runCatching { Jobs.latest(c) }.getOrNull() ?: return
+        val prefs = Repo.prefs(c)
+        if (j.date.isBlank() || j.leads.isEmpty() || prefs.getString("jobsSeen", "") == j.date) return
+        prefs.edit().putString("jobsSeen", j.date).apply()
+        val top = j.leads.first()
+        Notify.show(
+            c,
+            Lang.t(c, "💼 ${j.leads.size} فرص شغل جديدة", "💼 ${j.leads.size} new work leads"),
+            Lang.t(c, "الأنسب: ${top.title}", "Best fit: ${top.title}") +
+                (if (top.budget.isNotBlank()) " · ${top.budget}" else ""),
+            Intent(c, JobsActivity::class.java),
+            2
+        )
     }
 
     companion object {

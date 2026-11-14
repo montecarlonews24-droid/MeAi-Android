@@ -142,7 +142,14 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         }
         col.addView(actions, lp(top = 14))
 
-        content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        // 💼 فرص الشغل
+        val jobs = pill(t("💼 شغل اليوم", "💼 Today's work"), C.AMBER, 0xFF1A1205.toInt()).apply {
+            gravity = Gravity.CENTER
+            setOnClickListener { startActivity(Intent(this@MainActivity, JobsActivity::class.java)) }
+        }
+        col.addView(jobs, lp(top = 10))
+
+        content =LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         col.addView(content, lp(top = 18))
 
         return ScrollView(this).apply {

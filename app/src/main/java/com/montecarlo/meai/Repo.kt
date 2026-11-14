@@ -49,7 +49,7 @@ object Repo {
 
     fun prefs(ctx: Context) = ctx.getSharedPreferences("meai", Context.MODE_PRIVATE)
 
-    private fun fetch(file: String): String {
+    fun fetch(file: String): String {
         val c = URL(BASE + file + "?t=" + System.currentTimeMillis()).openConnection() as HttpURLConnection
         c.connectTimeout = 15000
         c.readTimeout = 15000
