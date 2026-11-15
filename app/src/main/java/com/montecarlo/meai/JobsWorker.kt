@@ -19,6 +19,8 @@ class JobsWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, params) {
 
     override fun doWork(): Result = try {
         val c = applicationContext
+        // أول إشي: منرفع بوستات Reddit الجديدة لـ Firebase عشان الـ Agent يحكم عليها
+        runCatching { RedditRelay.sync(c) }
         val j = Jobs.latest(c)
         val prefs = Repo.prefs(c)
         val run = j.generatedAt.ifBlank { j.date }

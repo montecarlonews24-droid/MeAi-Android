@@ -130,6 +130,7 @@ class JobsActivity : Activity() {
     private fun load() {
         if (!shown) setState(t("عم بجيب الفرص…", "Loading leads…"))
         io.execute {
+            runCatching { RedditRelay.sync(this) }
             val r = runCatching { Jobs.latest(this) }
             main.post {
                 r.onSuccess {
