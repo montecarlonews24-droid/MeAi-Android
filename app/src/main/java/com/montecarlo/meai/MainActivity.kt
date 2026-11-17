@@ -221,10 +221,15 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         }
 
         content.addView(h2(t("الأفكار حسب قوة الفرصة", "Ideas by opportunity")), lp(top = 26))
-        r.ideas.forEach {
+        // الأفكار اللي قلت عنها "مش لإلي" ما بتطلع (والـ Agent بيتعلم منها وبيجيب غيرها بالجولة الجاية)
+        val shown = r.ideas.filter { Feedback.local(this, it.name) != "down" }
+        val hidden = r.ideas.size - shown.size
+        shown.forEach {
             content.addView(card(it), lp())
             content.addView(View(this).apply { setBackgroundColor(C.LINE) }, lp(h = dp(1)))
         }
+        if (hidden > 0) content.addView(tv(t("خبّيت $hidden فكرة قلت عنها مش لإلك. بكرا بتجيك أفكار جديدة بدالها.",
+            "Hid $hidden idea(s) you marked not for you. New ideas come tomorrow."), 14f, C.MUTED), lp(top = 10))
 
         if (r.rejected.isNotEmpty()) {
             content.addView(h2(t("أفكار رفضها محمد", "Ideas the agent rejected")), lp(top = 26))
@@ -304,7 +309,10 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             io.execute {
                 val ok = Feedback.send(this, x, next)
                 main.post {
-                    if (ok) toast(if (next == null) t("انشال التقييم", "Vote removed") else t("محمد رح يتعلم من هالتقييم", "The agent will learn from this"))
+                    if (ok) {
+                        toast(if (next == null) t("انشال التقييم", "Vote removed") else t("محمد رح يتعلم من هالتقييم", "The agent will learn from this"))
+                        if (next == "down") report?.let { show(it) }
+                    }
                     else { paint(Feedback.local(this, x.name)); toast(t("ما انحفظ، تأكد من النت", "Not saved, check your connection")) }
                 }
             }
