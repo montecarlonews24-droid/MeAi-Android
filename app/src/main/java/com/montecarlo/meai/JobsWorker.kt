@@ -21,6 +21,8 @@ class JobsWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, params) {
         val c = applicationContext
         // أول إشي: منرفع بوستات Reddit الجديدة لـ Firebase عشان الـ Agent يحكم عليها
         runCatching { RedditRelay.sync(c) }
+        // وبحث LinkedIn من الموبايل (LinkedIn بيسكّر على سيرفرات GitHub)
+        runCatching { LinkedInRelay.sync(c) }
         val j = Jobs.latest(c)
         val prefs = Repo.prefs(c)
         val run = j.generatedAt.ifBlank { j.date }
