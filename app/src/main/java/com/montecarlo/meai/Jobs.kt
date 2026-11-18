@@ -8,7 +8,9 @@ data class Lead(
     val country: String, val budget: String, val posted: String, val proposals: String,
     val language: String, val summary: String, val fit: Int,
     val why: String, val watch: String, val proposal: String,
-    val fresh: Boolean = false
+    val fresh: Boolean = false,
+    /** Freelancer: وقت نشر المشروع (ثواني)، ووقت آخر عدّ للعروض، وإذا صار زحمة (فوق 30 عرض) */
+    val postedAt: Long = 0, val bidsAt: String = "", val crowded: Boolean = false
 )
 
 data class Skipped(val title: String, val url: String, val reason: String)
@@ -20,6 +22,9 @@ data class JobsReport(
 
 /** فرص الشغل اللي بيلاقيها الـ Job Scout كل يوم */
 object Jobs {
+
+    /** فوق هيك عدد عروض، فرصة Freelancer بتنخفى (إلا إذا قدّمت عليها) */
+    const val MAX_BIDS = 30
 
     private fun JSONObject.s(k: String): String {
         val v = optString(k, "")
@@ -42,7 +47,9 @@ object Jobs {
                 x.s("title"), x.s("url"), x.s("platform"), x.s("market"), x.s("country"),
                 x.s("budget"), x.s("posted"), x.s("proposals"), x.s("language"), x.s("summary"),
                 x.optInt("fit", 0).coerceIn(0, 10), x.lang("why", en), x.lang("watch", en), x.s("proposal"),
-                x.optBoolean("fresh", false)
+                x.optBoolean("fresh", false),
+                x.optLong("postedAt", 0), x.s("bidsAt"),
+                x.optBoolean("crowded", false) || (x.s("platform") == "Freelancer" && (x.s("proposals").toIntOrNull() ?: 0) > MAX_BIDS)
             )
         }
         val ra = root.optJSONArray("rejected")

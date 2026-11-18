@@ -29,6 +29,7 @@ class JobsActivity : Activity() {
     private lateinit var content: LinearLayout
     private lateinit var dateTv: TextView
     private var shown = false
+    private var last: JobsReport? = null
     private val main = Handler(Looper.getMainLooper())
     private val io = Executors.newSingleThreadExecutor()
 
@@ -151,8 +152,22 @@ class JobsActivity : Activity() {
         LocalDate.parse(d).format(DateTimeFormatter.ofPattern("EEEE d MMMM yyyy", if (en) Locale.ENGLISH else Locale("ar")))
     }.getOrDefault(d)
 
+    /** "قبل 3 ساعات" من وقت محفوظ (ثواني أو ISO) */
+    private fun since(ms: Long): String {
+        if (ms <= 0) return ""
+        val m = ((System.currentTimeMillis() - ms) / 60000).coerceAtLeast(0)
+        return when {
+            m < 60 -> t("قبل $m دقيقة", "$m min ago")
+            m < 48 * 60 -> t("قبل ${m / 60} ساعة", "${m / 60}h ago")
+            else -> t("قبل ${m / 1440} يوم", "${m / 1440}d ago")
+        }
+    }
+
+    private fun isoMs(s: String) = runCatching { java.time.Instant.parse(s).toEpochMilli() }.getOrDefault(0L)
+
     private fun show(r: JobsReport) {
         shown = true
+        last = r
         dateTv.text = fmt(r.date)
         content.removeAllViews()
 
@@ -165,9 +180,27 @@ class JobsActivity : Activity() {
             setPadding(dp(18), dp(14), dp(18), dp(14))
         }, lp())
 
-        if (r.leads.isNotEmpty()) {
+        // اللي قدّمت عليها بقسم لحالها تحت، والزحمة (فوق 30 عرض) بتنخفى إلا إذا قدّمت عليها
+        val (done, rest) = r.leads.partition { Jobs.applied(this, it.url) }
+        val todo = rest.filter { !it.crowded }
+        val hidden = rest.size - todo.size
+
+        if (todo.isNotEmpty()) {
             content.addView(h2(t("الفرص حسب قد إيش بتناسبك", "Leads by how well they fit you")), lp(top = 26))
-            r.leads.forEach {
+            todo.forEach {
+                content.addView(card(it), lp())
+                content.addView(View(this).apply { setBackgroundColor(C.LINE) }, lp(h = dp(1)))
+            }
+        } else if (r.leads.isNotEmpty()) {
+            content.addView(tv(t("ما في فرص جديدة مفتوحة هلّق.", "No open new leads right now."), 15f, C.MUTED), lp(top = 26))
+        }
+        if (hidden > 0) content.addView(tv(
+            t("خبّيت $hidden فرص صار عليها أكثر من ${Jobs.MAX_BIDS} عرض.", "Hid $hidden leads that now have over ${Jobs.MAX_BIDS} proposals."),
+            13f, C.MUTED), lp(top = 10))
+
+        if (done.isNotEmpty()) {
+            content.addView(h2(t("✅ قدّمت عليها (${done.size})", "✅ Applied (${done.size})")), lp(top = 30))
+            done.forEach {
                 content.addView(card(it), lp())
                 content.addView(View(this).apply { setBackgroundColor(C.LINE) }, lp(h = dp(1)))
             }
@@ -207,13 +240,17 @@ class JobsActivity : Activity() {
         }
         val applied = Jobs.applied(this, x.url)
         txt.addView(tv((if (applied) "✅ " else "") + x.title, 18f, C.TEXT, true))
-        if (x.fresh) txt.addView(tv(t("🆕 جديدة من آخر جولة", "🆕 New this run"), 13f, C.CYAN, true))
+        if (x.fresh && !applied) txt.addView(tv(t("🆕 جديدة من آخر جولة", "🆕 New this run"), 13f, C.CYAN, true))
         val meta = listOf(x.platform, marketLabel(x.market), x.country, x.budget).filter { it.isNotBlank() }
             .joinToString(" · ")
         if (meta.isNotBlank()) txt.addView(tv(meta, 14f, C.AMBER))
+        // وقت النشر بينحسب هلّق (مش النص اللي انكتب وقت البحث)، وعدد العروض مع وقت آخر عدّ
+        val posted = if (x.postedAt > 0) t("نزل ", "posted ") + since(x.postedAt * 1000) else x.posted
+        val counted = since(isoMs(x.bidsAt))
         val meta2 = listOf(
-            x.posted,
-            if (x.proposals.isNotBlank()) t("${x.proposals} عرض", "${x.proposals} proposals") else ""
+            posted,
+            if (x.proposals.isNotBlank()) t("${x.proposals} عرض", "${x.proposals} proposals") +
+                (if (counted.isNotBlank()) t(" (آخر عدّ $counted)", " (counted $counted)") else "") else ""
         ).filter { it.isNotBlank() }.joinToString(" · ")
         if (meta2.isNotBlank()) txt.addView(tv(meta2, 13f, C.MUTED))
         head.addView(txt, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
@@ -265,8 +302,8 @@ class JobsActivity : Activity() {
         mark.setOnClickListener {
             val now = !Jobs.applied(this, x.url)
             Jobs.setApplied(this, x.url, now)
-            mark.text = appliedLabel(now)
-            (txt.getChildAt(0) as TextView).text = (if (now) "✅ " else "") + x.title
+            toast(if (now) t("انتقلت لقسم \"قدّمت عليها\"", "Moved to Applied") else t("رجعت للفرص", "Moved back to leads"))
+            last?.let { show(it) }
         }
         details.addView(mark, lp(WRAP_CONTENT, WRAP_CONTENT, 10))
 
