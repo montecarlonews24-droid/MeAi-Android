@@ -23,6 +23,8 @@ class JobsWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, params) {
         runCatching { RedditRelay.sync(c) }
         // وبحث LinkedIn من الموبايل (LinkedIn بيسكّر على سيرفرات GitHub)
         runCatching { LinkedInRelay.sync(c) }
+        // ومشاريع مستقل من نت الموبايل (مستقل بيسكّر على سيرفرات GitHub)
+        runCatching { MostaqlRelay.sync(c) }
         val j = Jobs.latest(c)
         val prefs = Repo.prefs(c)
         val run = j.generatedAt.ifBlank { j.date }

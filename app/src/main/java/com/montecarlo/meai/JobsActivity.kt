@@ -132,6 +132,7 @@ class JobsActivity : Activity() {
         if (!shown) setState(t("عم بجيب الفرص…", "Loading leads…"))
         io.execute {
             runCatching { RedditRelay.sync(this) }
+            runCatching { MostaqlRelay.sync(this) }
             val r = runCatching { Jobs.latest(this) }
             main.post {
                 r.onSuccess {
