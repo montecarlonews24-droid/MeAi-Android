@@ -30,6 +30,14 @@ class JobsActivity : Activity() {
     private lateinit var dateTv: TextView
     private var shown = false
     private var last: JobsReport? = null
+    private var hnBtn: TextView? = null
+
+    // نفس الشاشة بتشتغل بوضعين: "شغل اليوم" (بدون Hacker News)، وصفحة Hacker News لحالها
+    private val hnOnly by lazy { intent.getBooleanExtra(EXTRA_HN, false) }
+    private fun isHn(x: Lead) = x.platform == "HackerNews"
+    private fun isHnUrl(u: String) = u.contains("news.ycombinator.com")
+
+    companion object { const val EXTRA_HN = "hn" }
     private val main = Handler(Looper.getMainLooper())
     private val io = Executors.newSingleThreadExecutor()
 
@@ -95,8 +103,14 @@ class JobsActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
         }
         val titles = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        titles.addView(tv(t("شغل اليوم", "Today's work"), 32f, C.AMBER, true))
-        titles.addView(tv(t("فرص فريلانس بتناسبك، مع عرض جاهز", "Freelance leads that fit you, with a ready proposal"), 15f, C.MUTED))
+        if (hnOnly) {
+            titles.addView(tv("Hacker News", 32f, C.AMBER, true))
+            titles.addView(tv(t("شركات ناشئة (أغلبها أمريكا وأوروبا) بدها فريلانسر. التواصل بالإيميل اللي بالمنشور.",
+                "Startups (mostly US & Europe) seeking freelancers. Contact them by the email in the post."), 15f, C.MUTED))
+        } else {
+            titles.addView(tv(t("شغل اليوم", "Today's work"), 32f, C.AMBER, true))
+            titles.addView(tv(t("فرص فريلانس بتناسبك، مع عرض جاهز", "Freelance leads that fit you, with a ready proposal"), 15f, C.MUTED))
+        }
         top.addView(titles, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
         top.addView(pill(t("رجوع", "Back"), C.PANEL, C.TEXT).apply { setOnClickListener { finish() } },
             LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT))
@@ -105,8 +119,19 @@ class JobsActivity : Activity() {
         dateTv = tv("", 15f, C.MUTED)
         col.addView(dateTv, lp(top = 10))
 
-        col.addView(pill(t("تحديث", "Refresh"), C.PANEL, C.TEXT).apply { setOnClickListener { load() } },
-            lp(WRAP_CONTENT, WRAP_CONTENT, 10))
+        val btns = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        btns.addView(pill(t("تحديث", "Refresh"), C.PANEL, C.TEXT).apply { setOnClickListener { load() } },
+            LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT))
+        if (!hnOnly) {
+            val b = pill("🟧 Hacker News", C.PANEL, C.TEXT).apply {
+                setOnClickListener {
+                    startActivity(Intent(this@JobsActivity, JobsActivity::class.java).putExtra(EXTRA_HN, true))
+                }
+            }
+            hnBtn = b
+            btns.addView(b, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { marginStart = dp(8) })
+        }
+        col.addView(btns, lp(top = 10))
 
         content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         col.addView(content, lp(top = 18))
@@ -172,7 +197,12 @@ class JobsActivity : Activity() {
         dateTv.text = fmt(r.date)
         content.removeAllViews()
 
-        if (r.summary.isNotBlank()) content.addView(tv(r.summary, 17f, C.TEXT).apply {
+        // كل صفحة بتعرض فرصها بس: Hacker News لحاله، والباقي بشغل اليوم
+        val leads = r.leads.filter { isHn(it) == hnOnly }
+        val rejected = r.rejected.filter { isHnUrl(it.url) == hnOnly }
+        hnBtn?.text = r.leads.count { isHn(it) && !Jobs.applied(this, it.url) }.let { if (it > 0) "🟧 Hacker News ($it)" else "🟧 Hacker News" }
+
+        if (!hnOnly && r.summary.isNotBlank()) content.addView(tv(r.summary, 17f, C.TEXT).apply {
             background = GradientDrawable().apply {
                 setColor(C.PANEL)
                 cornerRadius = dp(22).toFloat()
@@ -182,7 +212,7 @@ class JobsActivity : Activity() {
         }, lp())
 
         // اللي قدّمت عليها بقسم لحالها تحت، والزحمة (فوق 30 عرض) بتنخفى إلا إذا قدّمت عليها
-        val (done, rest) = r.leads.partition { Jobs.applied(this, it.url) }
+        val (done, rest) = leads.partition { Jobs.applied(this, it.url) }
         val todo = rest.filter { !it.crowded }
         val hidden = rest.size - todo.size
 
@@ -192,8 +222,12 @@ class JobsActivity : Activity() {
                 content.addView(card(it), lp())
                 content.addView(View(this).apply { setBackgroundColor(C.LINE) }, lp(h = dp(1)))
             }
-        } else if (r.leads.isNotEmpty()) {
-            content.addView(tv(t("ما في فرص جديدة مفتوحة هلّق.", "No open new leads right now."), 15f, C.MUTED), lp(top = 26))
+        } else if (leads.isNotEmpty() || hnOnly) {
+            content.addView(tv(
+                if (hnOnly) t("ما في منشورات Hacker News بتناسبك هلّق. الخيط بينزل أول كل شهر، والـ Agent بيشيّك عليه بكل جولة.",
+                    "No fitting Hacker News posts right now. The thread is posted at the start of each month; the agent checks it every run.")
+                else t("ما في فرص جديدة مفتوحة هلّق.", "No open new leads right now."),
+                15f, C.MUTED), lp(top = 26))
         }
         if (hidden > 0) content.addView(tv(
             t("خبّيت $hidden فرص صار عليها أكثر من ${Jobs.MAX_BIDS} عرض.", "Hid $hidden leads that now have over ${Jobs.MAX_BIDS} proposals."),
@@ -207,9 +241,9 @@ class JobsActivity : Activity() {
             }
         }
 
-        if (r.rejected.isNotEmpty()) {
+        if (rejected.isNotEmpty()) {
             content.addView(h2(t("فرص رفضها الـ Agent", "Leads the agent skipped")), lp(top = 26))
-            r.rejected.forEach { s ->
+            rejected.forEach { s ->
                 content.addView(tv(s.title, 15f, C.MUTED, true).apply {
                     if (s.url.isNotBlank()) setOnClickListener { openUrl(s.url) }
                 }, lp(top = 8))
