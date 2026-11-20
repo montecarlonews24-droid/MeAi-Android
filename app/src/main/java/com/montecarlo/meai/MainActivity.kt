@@ -113,6 +113,9 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         val titles = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         titles.addView(tv(t("محمد", "Me.ai"), 36f, C.AMBER, true))
         titles.addView(tv(t("كشّاف الأفكار اليومي", "Daily idea scout"), 16f, C.MUTED))
+        // رقم النسخة بخط صغير، عشان تعرف إذا التحديث انثبّت بدون ما تفتح الإعدادات
+        val ver = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull() ?: "?"
+        titles.addView(tv(t("نسخة $ver", "v$ver"), 11f, C.MUTED))
         top.addView(titles, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
         val langBtn = pill(if (en) "عربي" else "EN", C.PANEL, C.TEXT).apply {
             setOnClickListener { Lang.toggle(this@MainActivity); recreate() }
