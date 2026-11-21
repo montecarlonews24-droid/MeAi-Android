@@ -1,6 +1,8 @@
 package com.montecarlo.meai
 
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.text.Html
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -20,6 +22,8 @@ object KhamsatRelay {
     )
     // الرابط بيجي "/community/requests/123456-عنوان-الطلب": منوخذ الرقم والمسار كامل
     private val LINK = Regex("href=[\"']((?:https?://(?:www\\.)?khamsat\\.com)?/community/requests/(\\d{3,})[^\"'#?]*)[\"'][^>]*>([\\s\\S]*?)</a>", RegexOption.IGNORE_CASE)
+    // للإشعار الفوري بس: شغل تطبيقات أندرويد فعلاً (الباقي بيحكم عليه الـ Agent)
+    private val APP = Regex("تطبيق|أندرويد|اندرويد|android|apk|aab|play|جوجل بلاي|قوقل بلاي|متجر جوجل|تحويل موقع|webview|kotlin|كوتلن", RegexOption.IGNORE_CASE)
     private val RELEVANT = Regex("تطبيق|أندرويد|اندرويد|android|موبايل|جوال|هاتف|ذكاء اصطناعي|ذكاء إصطناعي|\\bai\\b|بوت|شات|chat|gpt|فايربيس|firebase|play|متجر جوجل|قوقل بلاي|جوجل بلاي|webview|تحويل موقع|أتمتة|وكيل|kotlin|كوتلن|apk", RegexOption.IGNORE_CASE)
     private val OFF = Regex("flutter|فلاتر|react native|ios فقط|آيفون فقط|ووردبريس|wordpress|شوبيفاي|متجر سلة|منصة زد|تصميم شعار|لوجو|مونتاج|كتابة محتوى|ترجمة|إعلانات ممولة", RegexOption.IGNORE_CASE)
     private const val UA = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36"
@@ -78,7 +82,14 @@ object KhamsatRelay {
             .replace(Regex("\\s+"), " ").trim()
         val start = text.indexOf(title.take(30)).takeIf { it >= 0 } ?: 0
         val closed = Regex("هذا الطلب مغلق|تم إغلاق الطلب|الطلب مغلق").containsMatchIn(text)
+        // عدد التعليقات = عدد العروض تقريباً
+        val comments = Regex("التعليقات\\s*\\((\\d+)\\)").find(text)?.groupValues?.get(1)?.toIntOrNull() ?: -1
+        // خمسات بيرتّب حسب آخر نشاط، فطلب قديم ممكن يطلع فوق: منقرأ "منذ ..." تبع الطلب نفسه (أول وحدة بعد العنوان)
+        val age = Regex("منذ\\s+([^\\d]{0,3}\\d*\\s*[\\p{L}]+)").find(text, start)?.groupValues?.get(1) ?: ""
+        val old = Regex("يوم|يومين|أيام|أسبوع|أسابيع|شهر|أشهر|سنة").containsMatchIn(age)
         return JSONObject()
+            .put("offers", comments)
+            .put("old", old)
             .put("text", text.substring(start).take(1800))
             .put("open", !closed)
     }
@@ -109,6 +120,7 @@ object KhamsatRelay {
 
         var count = 0
         var opened = 0
+        val fresh = mutableListOf<Pair<String, String>>()
         for ((id, v) in found) {
             val (path, title) = v
             if (id in sent) continue
@@ -118,12 +130,15 @@ object KhamsatRelay {
             val url = "https://khamsat.com$path"
             val d = runCatching { details(get(url).body, title) }.getOrNull() ?: continue
             if (!d.optBoolean("open", true)) { sent.add(id); continue }
+            // طلب عمره أكثر من يوم أو عليه أكثر من 15 تعليق: فات وقته
+            if (d.optBoolean("old", false) || d.optInt("offers", -1) > 15) { sent.add(id); continue }
             val ok = put("khamsat/$id", JSONObject()
                 .put("title", title.take(290))
                 .put("url", url)
                 .put("text", d.optString("text"))
+                .put("offers", d.optInt("offers", -1))
                 .put("created", System.currentTimeMillis() / 1000))
-            if (ok) { sent.add(id); count++ }
+            if (ok) { sent.add(id); count++; if (APP.containsMatchIn(title)) fresh.add(title to url) }
             Thread.sleep(1200)
         }
         // حالة آخر قراءة، عشان نعرف من تقرير الـ Agent إذا خمسات عم يفتح من الموبايل
@@ -133,6 +148,17 @@ object KhamsatRelay {
             .put("found", found.size)
             .put("sent", count))
         prefs.edit().putStringSet("khamsatSent", sent.toList().takeLast(400).toSet()).apply()
+        // إشعار فوري من الموبايل، بدون ما نستنى جولة الـ Agent (كل ساعتين)
+        if (fresh.isNotEmpty()) {
+            val (t, u) = fresh.first()
+            Notify.show(
+                ctx,
+                Lang.t(ctx, "🟡 طلب جديد على خمسات" + (if (fresh.size > 1) " (+${fresh.size - 1})" else ""), "🟡 New Khamsat request" + (if (fresh.size > 1) " (+${fresh.size - 1})" else "")),
+                t,
+                Intent(Intent.ACTION_VIEW, Uri.parse(u)),
+                3
+            )
+        }
         return count
     }
 }
