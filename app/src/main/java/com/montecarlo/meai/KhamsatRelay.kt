@@ -16,8 +16,7 @@ import java.net.URL
 object KhamsatRelay {
     private const val ROOT = "https://meai-agent-ee448-default-rtdb.europe-west1.firebasedatabase.app/"
     private val LISTS = listOf(
-        "https://khamsat.com/community/requests",
-        "https://khamsat.com/community/requests?page=2"
+        "https://khamsat.com/community/requests"
     )
     // الرابط بيجي "/community/requests/123456-عنوان-الطلب": منوخذ الرقم والمسار كامل
     private val LINK = Regex("href=[\"']((?:https?://(?:www\\.)?khamsat\\.com)?/community/requests/(\\d{3,})[^\"'#?]*)[\"'][^>]*>([\\s\\S]*?)</a>", RegexOption.IGNORE_CASE)
@@ -67,12 +66,16 @@ object KhamsatRelay {
         val noCode = html
             .replace(Regex("<script[\\s\\S]*?</script>", RegexOption.IGNORE_CASE), " ")
             .replace(Regex("<style[\\s\\S]*?</style>", RegexOption.IGNORE_CASE), " ")
+            // خمسات بيحط رسالة "فعّل JavaScript" جوا noscript: منشيلها عشان ما توصل مكان الوصف
+            .replace(Regex("<noscript[\\s\\S]*?</noscript>", RegexOption.IGNORE_CASE), " ")
         return Html.fromHtml(noCode).toString().replace(Regex("\\s+"), " ").trim()
     }
 
     /** من صفحة الطلب: الوصف (من عنوان الطلب ورايح)، وإذا الطلب مسكّر */
     private fun details(html: String, title: String): JSONObject {
         val text = plain(html)
+            .replace(Regex("[^.!؟\n]*(javascript|جافا ?سكريبت)[^.!؟\n]*[.!؟]?", RegexOption.IGNORE_CASE), " ")
+            .replace(Regex("\\s+"), " ").trim()
         val start = text.indexOf(title.take(30)).takeIf { it >= 0 } ?: 0
         val closed = Regex("هذا الطلب مغلق|تم إغلاق الطلب|الطلب مغلق").containsMatchIn(text)
         return JSONObject()
