@@ -24,6 +24,8 @@ object KhamsatRelay {
     private val LINK = Regex("href=[\"']((?:https?://(?:www\\.)?khamsat\\.com)?/community/requests/(\\d{3,})[^\"'#?]*)[\"'][^>]*>([\\s\\S]*?)</a>", RegexOption.IGNORE_CASE)
     // للإشعار الفوري بس: شغل تطبيقات أندرويد فعلاً (الباقي بيحكم عليه الـ Agent)
     private val APP = Regex("تطبيق|أندرويد|اندرويد|android|apk|aab|play|جوجل بلاي|قوقل بلاي|متجر جوجل|تحويل موقع|webview|kotlin|كوتلن", RegexOption.IGNORE_CASE)
+    // تصميم وتسويق: كلمة "تطبيق" فيها بس مش شغل برمجة، فما منبعت إلها إشعار
+    private val NOT_DEV = Regex("تصميم|مصمم|figma|فيجما|wireframe|ui/ux|هوية|شعار|لوجو|logo|تسويق|ماركيتنج|marketing|إعلان|اعلان|حملات|سوشيال|مونتاج|فيديو|كتابة|محتوى|ترجمة|seo", RegexOption.IGNORE_CASE)
     private val RELEVANT = Regex("تطبيق|أندرويد|اندرويد|android|موبايل|جوال|هاتف|ذكاء اصطناعي|ذكاء إصطناعي|\\bai\\b|بوت|شات|chat|gpt|فايربيس|firebase|play|متجر جوجل|قوقل بلاي|جوجل بلاي|webview|تحويل موقع|أتمتة|وكيل|kotlin|كوتلن|apk", RegexOption.IGNORE_CASE)
     private val OFF = Regex("flutter|فلاتر|react native|ios فقط|آيفون فقط|ووردبريس|wordpress|شوبيفاي|متجر سلة|منصة زد|تصميم شعار|لوجو|مونتاج|كتابة محتوى|ترجمة|إعلانات ممولة", RegexOption.IGNORE_CASE)
     private const val UA = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36"
@@ -121,9 +123,16 @@ object KhamsatRelay {
         var count = 0
         var opened = 0
         val fresh = mutableListOf<Pair<String, String>>()
+        // أرقام طلبات خمسات بتزيد مع الوقت. الطلب القديم بيطلع فوق القائمة لما ينزل عليه تعليق،
+        // بس رقمه بيضل صغير. فمنعتبر الطلب جديد بس إذا رقمه أكبر من أكبر رقم شفناه قبل.
+        val lastMax = prefs.getLong("khamsatMaxId", 0L)
+        val pageMax = found.keys.mapNotNull { it.toLongOrNull() }.maxOrNull() ?: 0L
+        // أول مرة: منعتبر بس آخر كم طلب جديد (فرق 30 رقم تقريباً = آخر ساعات)
+        val floor = if (lastMax > 0) lastMax else pageMax - 30
         for ((id, v) in found) {
             val (path, title) = v
             if (id in sent) continue
+            if ((id.toLongOrNull() ?: 0L) <= floor) { sent.add(id); continue }
             if (!RELEVANT.containsMatchIn(title) || OFF.containsMatchIn(title)) { sent.add(id); continue }
             if (opened >= 8) break // ما منفتح أكثر من 8 صفحات بالمرة الوحدة
             opened++
@@ -138,7 +147,7 @@ object KhamsatRelay {
                 .put("text", d.optString("text"))
                 .put("offers", d.optInt("offers", -1))
                 .put("created", System.currentTimeMillis() / 1000))
-            if (ok) { sent.add(id); count++; if (APP.containsMatchIn(title)) fresh.add(title to url) }
+            if (ok) { sent.add(id); count++; if (APP.containsMatchIn(title) && !NOT_DEV.containsMatchIn(title)) fresh.add(title to url) }
             Thread.sleep(1200)
         }
         // حالة آخر قراءة، عشان نعرف من تقرير الـ Agent إذا خمسات عم يفتح من الموبايل
@@ -147,7 +156,10 @@ object KhamsatRelay {
             .put("lists", status.toString().take(300))
             .put("found", found.size)
             .put("sent", count))
-        prefs.edit().putStringSet("khamsatSent", sent.toList().takeLast(400).toSet()).apply()
+        prefs.edit()
+            .putStringSet("khamsatSent", sent.toList().takeLast(400).toSet())
+            .putLong("khamsatMaxId", maxOf(lastMax, found.keys.filter { it in sent }.mapNotNull { it.toLongOrNull() }.maxOrNull() ?: 0L))
+            .apply()
         // إشعار فوري من الموبايل، بدون ما نستنى جولة الـ Agent (كل ساعتين)
         if (fresh.isNotEmpty()) {
             val (t, u) = fresh.first()
