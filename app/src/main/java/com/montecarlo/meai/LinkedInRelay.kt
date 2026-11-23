@@ -9,7 +9,7 @@ import java.net.URLEncoder
 
 /**
  * LinkedIn بيسكّر على سيرفرات GitHub (429)، بس مش على موبايلك.
- * فالموبايل بيدوّر بصفحة الوظائف العامة (Remote + Contract، آخر 24 ساعة)
+ * فالموبايل بيدوّر بصفحة الوظائف العامة (Remote: دوام كامل أو جزئي أو عقد، آخر 24 ساعة)
  * وبيرفع النتائج لـ Firebase /linkedin، والـ Job Scout بياخدها من هناك وبيحكم عليها.
  * كل ساعة 3 بحثات بس، وبيلف على باقي الكلمات والمناطق بالساعات الجاية.
  */
@@ -72,7 +72,7 @@ object LinkedInRelay {
             val (kw, loc) = combos[((slot * 3 + i) % combos.size + combos.size) % combos.size]
             val url = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=" +
                 URLEncoder.encode(kw, "UTF-8") + "&location=" + URLEncoder.encode(loc, "UTF-8") +
-                "&f_WT=2&f_JT=C%2CP%2CT&f_TPR=r86400&start=0"
+                "&f_WT=2&f_JT=F%2CC%2CP%2CT&f_TPR=r86400&start=0"
             val html = get(url) ?: break   // إذا سكّر، منوقف هالساعة
             for (card in html.split(Regex("<li[ >]")).drop(1)) {
                 val id = Regex("jobPosting:(\\d+)").find(card)?.groupValues?.get(1)

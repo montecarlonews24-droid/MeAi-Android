@@ -15,7 +15,7 @@ import java.time.OffsetDateTime
 object RedditRelay {
     private const val FEED = "https://www.reddit.com/r/forhire/new/.rss?limit=50"
     private const val DB = "https://meai-agent-ee448-default-rtdb.europe-west1.firebasedatabase.app/reddit/"
-    private val KEY = Regex("android|mobile app|\\bapps?\\b|play store|google play|apk|kotlin|webview|ai agents?\\b|agentic", RegexOption.IGNORE_CASE)
+    private val KEY = Regex("android|mobile app|\\bapps?\\b|play store|google play|apk|kotlin|webview|ai agents?\\b|agentic|vibe ?cod|claude|chatgpt", RegexOption.IGNORE_CASE)
 
     private fun get(url: String): String {
         val c = URL(url).openConnection() as HttpURLConnection
