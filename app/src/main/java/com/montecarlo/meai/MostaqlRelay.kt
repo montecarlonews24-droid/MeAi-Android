@@ -27,8 +27,8 @@ object MostaqlRelay {
     private val APP = Regex("تطبيق|أندرويد|اندرويد|android|apk|aab|play|جوجل بلاي|قوقل بلاي|متجر جوجل|تحويل موقع|webview|kotlin|كوتلن", RegexOption.IGNORE_CASE)
     // تصميم وتسويق: كلمة "تطبيق" فيها بس مش شغل برمجة، فما منبعت إلها إشعار
     private val NOT_DEV = Regex("تصميم|مصمم|figma|فيجما|wireframe|ui/ux|هوية|شعار|لوجو|logo|تسويق|ماركيتنج|marketing|إعلان|اعلان|حملات|سوشيال|مونتاج|فيديو|كتابة|محتوى|ترجمة|seo", RegexOption.IGNORE_CASE)
-    // تطبيقات أندرويد ونشر Google Play بس (AI لحاله، بوتات، أتمتة: ما بتنرفع)
-    private val RELEVANT = Regex("تطبيق|أندرويد|اندرويد|android|موبايل|جوال|\\bapps?\\b|apk|aab|play|متجر جوجل|قوقل بلاي|جوجل بلاي|webview|تحويل موقع|kotlin|كوتلن", RegexOption.IGNORE_CASE)
+    // تطبيقات أندرويد ونشر Google Play وAI Agents (البوتات والأتمتة ما بتنرفع؛ الـ Agent بيحكم على الباقي)
+    private val RELEVANT = Regex("تطبيق|أندرويد|اندرويد|android|موبايل|جوال|\\bapps?\\b|apk|aab|play|متجر جوجل|قوقل بلاي|جوجل بلاي|webview|تحويل موقع|kotlin|كوتلن|ذكاء اصطناعي|ذكاء إصطناعي|\\bai\\b|agent|agentic|وكيل|وكلاء", RegexOption.IGNORE_CASE)
     private val OFF = Regex("flutter|فلاتر|react native|ios فقط|آيفون فقط|ووردبريس|wordpress|شوبيفاي|متجر سلة|منصة زد|تصميم شعار|لوجو|مونتاج|كتابة محتوى|ترجمة|إعلانات ممولة|أتمتة|اتمتة|n8n|zapier|واتساب|واتس اب|تيليجرام|تلغرام|انستجرام|انستغرام|دوام كامل|براتب|مدرب|يوجهني|تدريب نموذج|langchain|مختبرين|تقييمات", RegexOption.IGNORE_CASE)
     private const val UA = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36"
 

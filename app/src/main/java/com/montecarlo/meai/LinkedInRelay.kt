@@ -17,7 +17,7 @@ object LinkedInRelay {
     private const val DB = "https://meai-agent-ee448-default-rtdb.europe-west1.firebasedatabase.app/linkedin/"
     private val KEYWORDS = listOf(
         "Android Developer", "Android iOS Developer", "Mobile App Developer",
-        "AI App Developer", "Kotlin Developer", "Freelance Android Developer"
+        "AI App Developer", "Kotlin Developer", "Freelance Android Developer", "AI Agent Developer"
     )
     private val PLACES = listOf("United States", "EMEA", "Middle East", "Canada", "Australia")
     private val SENIOR = Regex("\\b(senior|sr\\.?|staff|lead|principal|head of|director|manager|architect)\\b", RegexOption.IGNORE_CASE)
