@@ -12,6 +12,9 @@ import android.os.Build
 
 object Notify {
     private const val CH = "daily_ideas"
+    // فرص الشغل: قناة بأهمية عالية (صوت + اهتزاز + بتنزل فوق الشاشة)، عشان ما تروح فرصة
+    private const val JOBS = "job_alerts"
+    private val JOB_IDS = setOf(2, 3, 4) // 2 = فرص الـ Agent، 3 = خمسات، 4 = مستقل
 
     fun channel(ctx: Context) {
         ctx.getSystemService(NotificationManager::class.java)
@@ -23,11 +26,20 @@ object Notify {
             ctx.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) return
         channel(ctx)
+        val loud = id in JOB_IDS
+        if (loud) {
+            ctx.getSystemService(NotificationManager::class.java).createNotificationChannel(
+                NotificationChannel(JOBS, Lang.t(ctx, "فرص شغل جديدة", "New work leads"), NotificationManager.IMPORTANCE_HIGH).apply {
+                    enableVibration(true)
+                    vibrationPattern = longArrayOf(0, 400, 200, 400)
+                }
+            )
+        }
         val pi = PendingIntent.getActivity(
             ctx, id, intent ?: Intent(ctx, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
-        val n = Notification.Builder(ctx, CH)
+        val n = Notification.Builder(ctx, if (loud) JOBS else CH)
             .setSmallIcon(R.drawable.ic_notify)
             .setContentTitle(title)
             .setContentText(text)
