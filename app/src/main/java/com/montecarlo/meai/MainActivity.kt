@@ -59,6 +59,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         ) requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
         ScoutWorker.schedule(this)
         JobsWorker.schedule(this)
+        Keeper.start(this)
         Repo.cached(this)?.let { show(it) }
         load(null)
     }

@@ -18,7 +18,19 @@ import java.util.concurrent.TimeUnit
 class JobsWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, params) {
 
     override fun doWork(): Result = try {
-        val c = applicationContext
+        check(applicationContext)
+        Result.success()
+    } catch (e: Exception) {
+        Result.retry()
+    }
+
+    companion object {
+        private val busy = java.util.concurrent.atomic.AtomicBoolean(false)
+
+        /** الفحص نفسه: بيشتغل من WorkManager ومن المنبّه (Keeper) */
+        fun check(c: Context) {
+        if (!busy.compareAndSet(false, true)) return
+        try {
         // أول إشي: منرفع بوستات Reddit الجديدة لـ Firebase عشان الـ Agent يحكم عليها
         runCatching { RedditRelay.sync(c) }
         // وبحث LinkedIn من الموبايل (LinkedIn بيسكّر على سيرفرات GitHub)
@@ -42,12 +54,11 @@ class JobsWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, params) {
                 2
             )
         }
-        Result.success()
-    } catch (e: Exception) {
-        Result.retry()
-    }
+        } finally {
+            busy.set(false)
+        }
+        }
 
-    companion object {
         fun schedule(ctx: Context) {
             val req = PeriodicWorkRequestBuilder<JobsWorker>(1, TimeUnit.HOURS)
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
