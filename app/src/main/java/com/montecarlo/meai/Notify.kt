@@ -14,7 +14,7 @@ object Notify {
     private const val CH = "daily_ideas"
     // فرص الشغل: قناة بأهمية عالية (صوت + اهتزاز + بتنزل فوق الشاشة)، عشان ما تروح فرصة
     private const val JOBS = "job_alerts"
-    private val JOB_IDS = setOf(2, 3, 4) // 2 = فرص الـ Agent، 3 = خمسات، 4 = مستقل
+    private val JOB_IDS = setOf(2, 3, 4, 5, 6) // 2 = فرص الـ Agent، 3 = خمسات، 4 = مستقل، 5 = Freelancer، 6 = LinkedIn
 
     fun channel(ctx: Context) {
         ctx.getSystemService(NotificationManager::class.java)

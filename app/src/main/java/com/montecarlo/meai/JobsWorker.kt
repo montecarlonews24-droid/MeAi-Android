@@ -39,6 +39,8 @@ class JobsWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, params) {
         runCatching { MostaqlRelay.sync(c) }
         // وطلبات خمسات بنفس الطريقة
         runCatching { KhamsatRelay.sync(c) }
+        // ومشاريع Freelancer: إشعار فوري للمشاريع الجديدة (المشاريع هناك بتنزحم خلال ساعة)
+        runCatching { FreelancerRelay.sync(c) }
         val j = Jobs.latest(c)
         val prefs = Repo.prefs(c)
         val run = j.generatedAt.ifBlank { j.date }

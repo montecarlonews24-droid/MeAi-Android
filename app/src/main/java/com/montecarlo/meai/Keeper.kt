@@ -60,7 +60,7 @@ object Keeper {
         return Notification.Builder(ctx, CH)
             .setSmallIcon(R.drawable.ic_notify)
             .setContentTitle(Lang.t(ctx, "Me.ai بيدوّر على فرص", "Me.ai is watching for leads"))
-            .setContentText(Lang.t(ctx, "بيفحص مستقل وخمسات وLinkedIn كل 30 دقيقة", "Checks Mostaql, Khamsat and LinkedIn every 30 minutes"))
+            .setContentText(Lang.t(ctx, "بيفحص مستقل وخمسات وFreelancer وLinkedIn كل 30 دقيقة", "Checks Mostaql, Khamsat, Freelancer and LinkedIn every 30 minutes"))
             .setContentIntent(pi)
             .setOngoing(true)
             .build()

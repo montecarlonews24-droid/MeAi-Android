@@ -1,6 +1,8 @@
 package com.montecarlo.meai
 
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.text.Html
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -20,6 +22,9 @@ object LinkedInRelay {
         "AI App Developer", "Kotlin Developer", "Freelance Android Developer", "AI Agent Developer"
     )
     private val PLACES = listOf("United States", "EMEA", "Middle East", "Canada", "Australia")
+    // للإشعار الفوري: وظايف تطبيقات أو AI Agents، مش حضوري ولا هايبرد
+    private val FIT = Regex("android|kotlin|mobile|\\bios\\b|\\bapps?\\b|ai agent|agentic|llm|gen ?ai", RegexOption.IGNORE_CASE)
+    private val ONSITE = Regex("on-?site|hybrid", RegexOption.IGNORE_CASE)
     private val SENIOR = Regex("\\b(senior|sr\\.?|staff|lead|principal|head of|director|manager|architect)\\b", RegexOption.IGNORE_CASE)
 
     private fun get(url: String): String? {
@@ -68,6 +73,7 @@ object LinkedInRelay {
         val combos = KEYWORDS.flatMap { k -> PLACES.map { p -> k to p } }
         val slot = (System.currentTimeMillis() / 3_600_000L).toInt()
         var count = 0
+        val fresh = mutableListOf<Triple<String, String, String>>() // (العنوان، الشركة، الرابط)
         for (i in 0 until 3) {
             val (kw, loc) = combos[((slot * 3 + i) % combos.size + combos.size) % combos.size]
             val url = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=" +
@@ -92,11 +98,21 @@ object LinkedInRelay {
                     .put("raw", listOf(title, company, place).filter { it.isNotBlank() }.joinToString(" | ").take(900))
                     .put("url", "https://www.linkedin.com/jobs/view/$id/")
                     .put("created", System.currentTimeMillis() / 1000))
-                if (ok) count++
+                if (ok) {
+                    count++
+                    if (FIT.containsMatchIn(title) && !ONSITE.containsMatchIn(place)) fresh.add(Triple(title, company, "https://www.linkedin.com/jobs/view/$id/"))
+                }
             }
             Thread.sleep(4000L + (Math.random() * 4000).toLong())
         }
         prefs.edit().putStringSet("linkedinSent", sent.toList().takeLast(500).toSet()).apply()
+        // إشعار فوري بصوت لأول وظيفة مناسبة (الـ Agent بيحكم عليها كمان بعدين وبيكتب العرض)
+        if (fresh.isNotEmpty()) {
+            val (t, co, u) = fresh.first()
+            val more = if (fresh.size > 1) " (+${fresh.size - 1})" else ""
+            Notify.show(ctx, Lang.t(ctx, "🔷 وظيفة Remote جديدة على LinkedIn$more", "🔷 New remote job on LinkedIn$more"),
+                listOf(t, co).filter { it.isNotBlank() }.joinToString(" · "), Intent(Intent.ACTION_VIEW, Uri.parse(u)), 6)
+        }
         return count
     }
 }
