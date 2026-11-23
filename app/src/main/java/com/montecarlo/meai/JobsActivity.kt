@@ -159,6 +159,7 @@ class JobsActivity : Activity() {
             runCatching { RedditRelay.sync(this) }
             runCatching { MostaqlRelay.sync(this) }
             runCatching { KhamsatRelay.sync(this) }
+            runCatching { Keeper.beat(this, "open") }
             val r = runCatching { Jobs.latest(this) }
             main.post {
                 r.onSuccess {

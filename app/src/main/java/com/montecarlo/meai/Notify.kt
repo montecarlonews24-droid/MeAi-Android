@@ -14,6 +14,9 @@ object Notify {
     private const val CH = "daily_ideas"
     // فرص الشغل: قناة بأهمية عالية (صوت + اهتزاز + بتنزل فوق الشاشة)، عشان ما تروح فرصة
     private const val JOBS = "job_alerts"
+    // للسجل: عناوين إشعارات الفرص اللي طلعت من آخر فحص
+    private val posted = java.util.Collections.synchronizedList(mutableListOf<String>())
+    fun drain(): String = synchronized(posted) { val t = posted.joinToString(" | "); posted.clear(); t }
     private val JOB_IDS = setOf(2, 3, 4, 5, 6) // 2 = فرص الـ Agent، 3 = خمسات، 4 = مستقل، 5 = Freelancer، 6 = LinkedIn
 
     fun channel(ctx: Context) {
@@ -27,6 +30,7 @@ object Notify {
         ) return
         channel(ctx)
         val loud = id in JOB_IDS
+        if (loud) posted.add(title.take(80))
         if (loud) {
             ctx.getSystemService(NotificationManager::class.java).createNotificationChannel(
                 NotificationChannel(JOBS, Lang.t(ctx, "فرص شغل جديدة", "New work leads"), NotificationManager.IMPORTANCE_HIGH).apply {

@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit
 class JobsWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, params) {
 
     override fun doWork(): Result = try {
-        check(applicationContext)
+        check(applicationContext, "worker")
         Result.success()
     } catch (e: Exception) {
         Result.retry()
@@ -28,7 +28,7 @@ class JobsWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, params) {
         private val busy = java.util.concurrent.atomic.AtomicBoolean(false)
 
         /** الفحص نفسه: بيشتغل من WorkManager ومن المنبّه (Keeper) */
-        fun check(c: Context) {
+        fun check(c: Context, src: String = "worker") {
         if (!busy.compareAndSet(false, true)) return
         try {
         // أول إشي: منرفع بوستات Reddit الجديدة لـ Firebase عشان الـ Agent يحكم عليها
@@ -58,6 +58,7 @@ class JobsWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, params) {
         }
         } finally {
             busy.set(false)
+            Keeper.beat(c, src)
         }
         }
 

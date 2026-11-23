@@ -14,6 +14,9 @@ import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import android.os.SystemClock
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
 
 /**
  * «الخدمة الدائمة»: تكنو (HiOS) بيوقف شغل التطبيقات بالخلفية، فـ WorkManager ما كان يشتغل إلا لما Moe يفتح التطبيق.
@@ -30,21 +33,45 @@ object Keeper {
 
     fun start(ctx: Context) {
         val c = ctx.applicationContext
-        schedule(c, 60 * 1000L) // أول فحص بعد دقيقة
+        schedule(c, 60 * 1000L, "start") // أول فحص بعد دقيقة
         runCatching {
             if (Build.VERSION.SDK_INT >= 26) c.startForegroundService(Intent(c, KeeperService::class.java))
             else c.startService(Intent(c, KeeperService::class.java))
         }
     }
 
-    fun schedule(ctx: Context, delay: Long = EVERY_MS) {
+    fun schedule(ctx: Context, delay: Long = EVERY_MS, src: String = "alarm") {
         val am = ctx.getSystemService(AlarmManager::class.java) ?: return
         val pi = PendingIntent.getBroadcast(
-            ctx, 770, Intent(ctx, KeeperTick::class.java),
+            ctx, 770, Intent(ctx, KeeperTick::class.java).putExtra("src", src),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
         // AllowWhileIdle: بيشتغل حتى بوضع النوم (Doze)، وما بيحتاج صلاحية المنبّه الدقيق
         am.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + delay, pi)
+    }
+
+    /** سجل نبض: كل فحص بيسجّل وقته ومصدره (منبّه بالخلفية، فتح التطبيق...) والإشعارات اللي طلعت، عشان نعرف إذا الخلفية شغّالة */
+    fun beat(ctx: Context, src: String) {
+        val now = System.currentTimeMillis() / 1000
+        val idle = runCatching { ctx.getSystemService(PowerManager::class.java).isDeviceIdleMode }.getOrDefault(false)
+        val v = runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrDefault("")
+        val row = JSONObject().put("src", src).put("at", now).put("posted", Notify.drain()).put("idle", idle).put("v", v)
+        // السجل محفوظ على الموبايل (آخر 40 فحص)، وبينرفع كامل جوا mostaqlStatus (مسار مسموح بقواعد Firebase)
+        val prefs = Repo.prefs(ctx)
+        val arr = runCatching { org.json.JSONArray(prefs.getString("keeperLog", "[]")) }.getOrDefault(org.json.JSONArray())
+        arr.put(row)
+        val keep = org.json.JSONArray()
+        for (i in maxOf(0, arr.length() - 40) until arr.length()) keep.put(arr.get(i))
+        prefs.edit().putString("keeperLog", keep.toString()).apply()
+        runCatching {
+            val c = URL("https://meai-agent-ee448-default-rtdb.europe-west1.firebasedatabase.app/mostaqlStatus/keeper.json").openConnection() as HttpURLConnection
+            c.connectTimeout = 15000; c.readTimeout = 15000
+            c.requestMethod = "PUT"; c.doOutput = true
+            c.setRequestProperty("Content-Type", "application/json")
+            c.outputStream.use { it.write(keep.toString().toByteArray()) }
+            c.responseCode
+            c.disconnect()
+        }
     }
 
     fun note(ctx: Context): Notification {
@@ -83,6 +110,7 @@ class KeeperService : Service() {
 class KeeperTick : BroadcastReceiver() {
     override fun onReceive(ctx: Context, intent: Intent?) {
         val c = ctx.applicationContext
+        val src = intent?.getStringExtra("src") ?: "alarm"
         Keeper.schedule(c) // الفحص الجاي بعد 30 دقيقة، قبل أي إشي
         // إذا النظام قتل الخدمة، منحاول نرجّعها (ممكن يرفض وهو بالخلفية، والمنبّه بيضل شغّال بكل الأحوال)
         runCatching {
@@ -94,7 +122,7 @@ class KeeperTick : BroadcastReceiver() {
         wl.acquire(4 * 60 * 1000L) // الموبايل بيضل صاحي لحد ما يخلص الفحص (4 دقايق كحد أقصى)
         Thread {
             try {
-                runCatching { JobsWorker.check(c) }
+                runCatching { JobsWorker.check(c, src) }
             } finally {
                 if (wl.isHeld) runCatching { wl.release() }
             }
