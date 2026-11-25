@@ -77,7 +77,9 @@ object FreelancerRelay {
                 val owner = users.optJSONObject(p.optLong("owner_id").toString())
                 val country = owner?.optJSONObject("location")?.optJSONObject("country")?.optString("name") ?: ""
                 val blocked = country in BLOCK || (cur?.optString("code") ?: "") in setOf("INR", "PKR", "BDT")
-                val minNeeded = if (hourly) (if (blocked) 15.0 else 10.0) else (if (blocked) 150.0 else 100.0)
+                // Moe ما بده مشاريع من الهند وباكستان وبنغلادش أبداً، حتى لو الميزانية كبيرة
+                if (blocked) continue
+                val minNeeded = if (hourly) 10.0 else 100.0
                 if (max < minNeeded) continue
                 val budget = "${b?.optDouble("minimum", 0.0)?.toInt() ?: 0}-${b?.optDouble("maximum", 0.0)?.toInt() ?: 0} ${cur?.optString("code") ?: "USD"}${if (hourly) "/hr" else ""}"
                 val detail = listOf(budget, "$bids bids", country).filter { it.isNotBlank() }.joinToString(" · ")

@@ -91,6 +91,8 @@ object LinkedInRelay {
                 if (SENIOR.containsMatchIn(title)) continue
                 val company = pick(card, "base-search-card__subtitle", "h4")
                 val place = pick(card, "job-search-card__location", "span")
+                // الهند وباكستان وبنغلادش: ما منرفعها أبداً
+                if (Regex("india|pakistan|bangladesh|bengaluru|bangalore|mumbai|delhi|hyderabad|chennai|pune|kolkata|noida|gurgaon|gurugram|karachi|lahore|islamabad|dhaka", RegexOption.IGNORE_CASE).containsMatchIn("$place $company")) continue
                 val ok = put(id, JSONObject()
                     .put("title", title.take(290))
                     .put("company", company.take(190))
