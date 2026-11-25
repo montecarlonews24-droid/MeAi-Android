@@ -13,7 +13,8 @@ import android.os.Build
 object Notify {
     private const val CH = "daily_ideas"
     // فرص الشغل: قناة بأهمية عالية (صوت + اهتزاز + بتنزل فوق الشاشة)، عشان ما تروح فرصة
-    private const val JOBS = "job_alerts"
+    // قناة جديدة (v2): القناة القديمة انعملت على بعض الأجهزة كـ "صامتة"، وأندرويد ما بيسمح نرفع أهميتها بعد ما تنعمل
+    private const val JOBS = "job_alerts_v2"
     // للسجل: عناوين إشعارات الفرص اللي طلعت من آخر فحص
     private val posted = java.util.Collections.synchronizedList(mutableListOf<String>())
     fun drain(): String = synchronized(posted) { val t = posted.joinToString(" | "); posted.clear(); t }
@@ -36,8 +37,18 @@ object Notify {
                 NotificationChannel(JOBS, Lang.t(ctx, "فرص شغل جديدة", "New work leads"), NotificationManager.IMPORTANCE_HIGH).apply {
                     enableVibration(true)
                     vibrationPattern = longArrayOf(0, 400, 200, 400)
+                    setSound(
+                        android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION),
+                        android.media.AudioAttributes.Builder()
+                            .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION)
+                            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build()
+                    )
+                    lockscreenVisibility = Notification.VISIBILITY_PUBLIC
                 }
             )
+            // منمسح القناة القديمة الصامتة
+            ctx.getSystemService(NotificationManager::class.java).deleteNotificationChannel("job_alerts")
         }
         val pi = PendingIntent.getActivity(
             ctx, id, intent ?: Intent(ctx, MainActivity::class.java),
@@ -50,6 +61,7 @@ object Notify {
             .setStyle(Notification.BigTextStyle().bigText(text))
             .setContentIntent(pi)
             .setAutoCancel(true)
+            .apply { if (loud) setCategory(Notification.CATEGORY_MESSAGE) }
             .build()
         ctx.getSystemService(NotificationManager::class.java).notify(id, n)
     }

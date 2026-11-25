@@ -31,7 +31,15 @@
         </activity>
 
         <activity android:name=".PlanActivity" android:exported="false" />
-        <activity android:name=".JobsActivity" android:exported="false" />
+        <activity android:name=".JobsActivity" android:exported="true">
+            <!-- إشعار ntfy من السيرفر بيفتح شاشة الشغل مباشرة: meai://jobs -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="meai" android:host="jobs" />
+            </intent-filter>
+        </activity>
 
         <!-- خدمة دائمة: بتخلّي تكنو ما يوقف Me.ai، وبتفحص الفرص كل 30 دقيقة -->
         <service
