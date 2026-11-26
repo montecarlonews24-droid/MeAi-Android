@@ -61,6 +61,8 @@ object FreelancerRelay {
                 val title = p.optString("title")
                 val seo = p.optString("seo_url")
                 if (title.isBlank() || seo.isBlank()) continue
+                // مشاريع محلية (لازم تكون قريب من صاحب المشروع): ما بنقدر نقدّم عليها من الأردن
+                if (p.optBoolean("local", false)) continue
                 // جديد بس: آخر 3 ساعات، وعليه 15 عرض أو أقل
                 if (now - p.optLong("time_submitted", now) > 3 * 3600) continue
                 val bids = p.optJSONObject("bid_stats")?.optInt("bid_count", 0) ?: 0
