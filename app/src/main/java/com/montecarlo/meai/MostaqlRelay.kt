@@ -135,7 +135,7 @@ object MostaqlRelay {
             if (ok) {
                 sent.add(id); count++
                 val offers = d.optInt("offers", -1)
-                if (APP.containsMatchIn(title) && !NOT_DEV.containsMatchIn(title) && offers <= 15) fresh.add(title to url)
+                if (APP.containsMatchIn(title) && !NOT_DEV.containsMatchIn(title) && offers <= 15) { fresh.add(title to url); Jobs.savePhone(ctx, "Mostaql", title, url) }
             }
             Thread.sleep(1200)
         }

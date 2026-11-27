@@ -102,7 +102,7 @@ object LinkedInRelay {
                     .put("created", System.currentTimeMillis() / 1000))
                 if (ok) {
                     count++
-                    if (FIT.containsMatchIn(title) && !ONSITE.containsMatchIn(place)) fresh.add(Triple(title, company, "https://www.linkedin.com/jobs/view/$id/"))
+                    if (FIT.containsMatchIn(title) && !ONSITE.containsMatchIn(place)) { fresh.add(Triple(title, company, "https://www.linkedin.com/jobs/view/$id/")); Jobs.savePhone(ctx, "LinkedIn", "$title · $company", "https://www.linkedin.com/jobs/view/$id/") }
                 }
             }
             Thread.sleep(4000L + (Math.random() * 4000).toLong())

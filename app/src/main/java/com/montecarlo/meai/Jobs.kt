@@ -23,6 +23,32 @@ data class JobsReport(
 /** فرص الشغل اللي بيلاقيها الـ Job Scout كل يوم */
 object Jobs {
 
+    /** الفرص اللي بعت عنها الموبايل إشعار فوري: بتنحفظ بالتطبيق (آخر 7 أيام) حتى لو الـ Agent لسا ما حكم عليها */
+    data class PhoneLead(val platform: String, val title: String, val url: String, val at: Long)
+
+    fun savePhone(ctx: Context, platform: String, title: String, url: String) {
+        val p = Repo.prefs(ctx)
+        val arr = runCatching { org.json.JSONArray(p.getString("phoneLeads", "[]")) }.getOrDefault(org.json.JSONArray())
+        for (i in 0 until arr.length()) if (arr.optJSONObject(i)?.optString("url") == url) return
+        arr.put(JSONObject().put("platform", platform).put("title", title).put("url", url).put("at", System.currentTimeMillis()))
+        val keep = org.json.JSONArray()
+        val cut = System.currentTimeMillis() - 7L * 86400000
+        for (i in maxOf(0, arr.length() - 60) until arr.length()) {
+            val o = arr.optJSONObject(i) ?: continue
+            if (o.optLong("at") >= cut) keep.put(o)
+        }
+        p.edit().putString("phoneLeads", keep.toString()).apply()
+    }
+
+    fun phoneLeads(ctx: Context): List<PhoneLead> {
+        val arr = runCatching { org.json.JSONArray(Repo.prefs(ctx).getString("phoneLeads", "[]")) }.getOrDefault(org.json.JSONArray())
+        val cut = System.currentTimeMillis() - 7L * 86400000
+        return (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }
+            .map { PhoneLead(it.optString("platform"), it.optString("title"), it.optString("url"), it.optLong("at")) }
+            .filter { it.at >= cut && it.url.isNotBlank() }
+            .sortedByDescending { it.at }
+    }
+
     /** فوق هيك عدد عروض، فرصة Freelancer بتنخفى (إلا إذا قدّمت عليها) */
     const val MAX_BIDS = 30
 

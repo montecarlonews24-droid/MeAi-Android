@@ -85,7 +85,7 @@ object FreelancerRelay {
                 if (max < minNeeded) continue
                 val budget = "${b?.optDouble("minimum", 0.0)?.toInt() ?: 0}-${b?.optDouble("maximum", 0.0)?.toInt() ?: 0} ${cur?.optString("code") ?: "USD"}${if (hourly) "/hr" else ""}"
                 val detail = listOf(budget, "$bids bids", country).filter { it.isNotBlank() }.joinToString(" · ")
-                fresh.add(Triple(title, detail, "https://www.freelancer.com/projects/$seo"))
+                fresh.add(Triple(title, detail, "https://www.freelancer.com/projects/$seo")); Jobs.savePhone(ctx, "Freelancer", title, "https://www.freelancer.com/projects/$seo")
             }
             Thread.sleep(800)
         }

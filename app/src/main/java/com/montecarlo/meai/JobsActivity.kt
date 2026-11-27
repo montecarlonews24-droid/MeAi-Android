@@ -213,6 +213,45 @@ class JobsActivity : Activity() {
             setPadding(dp(18), dp(14), dp(18), dp(14))
         }, lp())
 
+        // ⚠️ إذا الفحص بالخلفية ما اشتغل من أكثر من ساعتين: تكنو وقّف التطبيق، فمنبيّن لـ Moe شو يفعّل
+        if (!hnOnly) {
+            val log = runCatching { org.json.JSONArray(Repo.prefs(this).getString("keeperLog", "[]")) }.getOrDefault(org.json.JSONArray())
+            var lastBg = 0L
+            for (i in 0 until log.length()) {
+                val o = log.optJSONObject(i) ?: continue
+                if (o.optString("src") != "open") lastBg = maxOf(lastBg, o.optLong("at") * 1000)
+            }
+            if (lastBg > 0 && System.currentTimeMillis() - lastBg > 2 * 3600 * 1000L) {
+                content.addView(tv(t(
+                    "⚠️ الموبايل وقّف Me.ai بالخلفية (آخر فحص ${since(lastBg)})، فالإشعارات ما بتوصل إلا لما تفتح التطبيق. اكبس هون وفعّل: التشغيل التلقائي (Auto-start)، والتشغيل بالخلفية، والبطارية «غير مقيّد».",
+                    "⚠️ Your phone stopped Me.ai in the background (last check ${since(lastBg)}). Tap here and enable Auto-start, background activity and Unrestricted battery."),
+                    15f, C.TEXT, true).apply {
+                    background = GradientDrawable().apply { setColor(0x33E8A33D); cornerRadius = dp(16).toFloat() }
+                    setPadding(dp(16), dp(12), dp(16), dp(12))
+                    setOnClickListener {
+                        runCatching {
+                            startActivity(android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:$packageName")))
+                        }
+                    }
+                }, lp(top = 16))
+            }
+        }
+
+        // 🔔 اللي وصل عنه إشعار من الموبايل: بيضل محفوظ هون 7 أيام
+        if (!hnOnly) {
+            val known = r.leads.map { it.url }.toSet()
+            val skipped = r.rejected.map { it.url }.toSet()
+            val phone = Jobs.phoneLeads(this).filter { it.url !in known && !Jobs.applied(this, it.url) }
+            if (phone.isNotEmpty()) {
+                content.addView(h2(t("🔔 وصلك عنها إشعار (${phone.size})", "🔔 Alerted on your phone (${phone.size})")), lp(top = 26))
+                phone.take(20).forEach { p ->
+                    val tag = if (p.url in skipped) t(" · رفضها الـ Agent", " · skipped by agent") else ""
+                    content.addView(tv(p.title, 16f, C.TEXT, true).apply { setOnClickListener { openUrl(p.url) } }, lp(top = 10))
+                    content.addView(tv("${p.platform} · ${since(p.at)}$tag", 13f, C.MUTED).apply { setOnClickListener { openUrl(p.url) } }, lp())
+                }
+            }
+        }
+
         // اللي قدّمت عليها بقسم لحالها تحت، والزحمة (فوق 30 عرض) بتنخفى إلا إذا قدّمت عليها
         val (done, rest) = leads.partition { Jobs.applied(this, it.url) }
         val todo = rest.filter { !it.crowded }

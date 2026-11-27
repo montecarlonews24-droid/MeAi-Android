@@ -148,7 +148,7 @@ object KhamsatRelay {
                 .put("text", d.optString("text"))
                 .put("offers", d.optInt("offers", -1))
                 .put("created", System.currentTimeMillis() / 1000))
-            if (ok) { sent.add(id); count++; if (APP.containsMatchIn(title) && !NOT_DEV.containsMatchIn(title)) fresh.add(title to url) }
+            if (ok) { sent.add(id); count++; if (APP.containsMatchIn(title) && !NOT_DEV.containsMatchIn(title)) fresh.add(title to url); Jobs.savePhone(ctx, "Khamsat", title, url) }
             Thread.sleep(1200)
         }
         // حالة آخر قراءة، عشان نعرف من تقرير الـ Agent إذا خمسات عم يفتح من الموبايل
