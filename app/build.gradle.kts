@@ -11,8 +11,8 @@ android {
         applicationId = "com.montecarlo.meai"
         minSdk = 26
         targetSdk = 34
-        versionCode = 24
-        versionName = "1.9.5"
+        versionCode = 25
+        versionName = "1.9.6"
     }
 
     // مفتاح توقيع ثابت للنسخ التجريبية، عشان التحديثات تنزل فوق بعض بدون حذف

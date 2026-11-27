@@ -50,10 +50,17 @@ object Notify {
             // منمسح القناة القديمة الصامتة
             ctx.getSystemService(NotificationManager::class.java).deleteNotificationChannel("job_alerts")
         }
+        // إشعار فرصة: الكبسة بتفتح شاشة الشغل بالتطبيق (الفرصة محفوظة هناك)، وزر "فتح الفرصة" بيفتح رابطها مباشرة
+        val link = intent?.takeIf { it.action == Intent.ACTION_VIEW && it.data?.scheme?.startsWith("http") == true }
+        val main = if (loud && link != null) Intent(ctx, JobsActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                   else intent ?: Intent(ctx, MainActivity::class.java)
         val pi = PendingIntent.getActivity(
-            ctx, id, intent ?: Intent(ctx, MainActivity::class.java),
+            ctx, id, main,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
+        val linkPi = link?.let {
+            PendingIntent.getActivity(ctx, id + 1000, it, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        }
         val n = Notification.Builder(ctx, if (loud) JOBS else CH)
             .setSmallIcon(R.drawable.ic_notify)
             .setContentTitle(title)
@@ -62,6 +69,11 @@ object Notify {
             .setContentIntent(pi)
             .setAutoCancel(true)
             .apply { if (loud) setCategory(Notification.CATEGORY_MESSAGE) }
+            .apply {
+                if (loud && linkPi != null) addAction(
+                    Notification.Action.Builder(null, Lang.t(ctx, "فتح الفرصة", "Open lead"), linkPi).build()
+                )
+            }
             .build()
         ctx.getSystemService(NotificationManager::class.java).notify(id, n)
     }
